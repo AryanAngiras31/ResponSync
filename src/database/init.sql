@@ -8,6 +8,8 @@ CREATE TABLE incidents (
     incident_id INTEGER PRIMARY KEY AUTOINCREMENT,
     location_latitude REAL NOT NULL,
     location_longitude REAL NOT NULL,
+    address VARCHAR(255),
+    pincode VARCHAR(6)
     severity INTEGER NOT NULL,
     type TEXT NOT NULL,
     report_time DATETIME DEFAULT CURRENT_TIMESTAMP
