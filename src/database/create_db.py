@@ -1,5 +1,6 @@
 # create_db.py
 import sqlite3
+import os # Import the os module
 
 def initialize_database(db_file, init_sql_file):
     """Connects to an SQLite database and executes the SQL commands from the init file."""
@@ -23,6 +24,10 @@ def initialize_database(db_file, init_sql_file):
             conn.close()
 
 if __name__ == "__main__":
-    database_file = "emergency_response.db"
-    initialization_sql_file = "init.sql"  
+    # Get the directory where the script is located
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    # Construct the absolute path to the database file in the script's directory
+    database_file = os.path.join(script_dir, "database.db")
+    # Construct the absolute path to the init.sql file
+    initialization_sql_file = os.path.join(script_dir, "init.sql")
     initialize_database(database_file, initialization_sql_file)
