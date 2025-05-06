@@ -2,6 +2,9 @@
 DROP TABLE IF EXISTS incidents;
 DROP TABLE IF EXISTS resources;
 DROP TABLE IF EXISTS allocations;
+DROP TABLE IF EXISTS current_incidents;
+DROP TABLE IF EXISTS current_resources;
+DROP TABLE IF EXISTS current_allocations;
 
 -- Create the incidents table
 CREATE TABLE incidents (
@@ -34,4 +37,32 @@ CREATE TABLE allocations (
     FOREIGN KEY (incident_id) REFERENCES incidents(incident_id),
     FOREIGN KEY (resource_id) REFERENCES resources(resource_id)
     UNIQUE (incident_id)
+);
+
+CREATE TABLE current_incidents (
+    incident_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    location_latitude REAL NOT NULL,
+    location_longitude REAL NOT NULL,
+    severity INTEGER NOT NULL,
+    type TEXT NOT NULL,
+    report_time DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE current_resources (
+    resource_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    type TEXT NOT NULL,
+    current_latitude REAL NOT NULL,
+    current_longitude REAL NOT NULL,
+    status TEXT NOT NULL CHECK(status IN ('available', 'en_route', 'occupied'))
+);
+
+CREATE TABLE current_allocations (
+    allocation_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    incident_id INTEGER NOT NULL,
+    resource_id INTEGER NOT NULL,
+    assignment_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    predicted_response_time REAL,
+    FOREIGN KEY (incident_id) REFERENCES incidents(incident_id),
+    FOREIGN KEY (resource_id) REFERENCES resources(resource_id),
+    UNIQUE (incident_id) -- Assuming one active allocation per incident at a time for your core requirement
 );
