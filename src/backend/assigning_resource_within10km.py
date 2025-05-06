@@ -79,4 +79,4 @@ for _, row in incident_data.iterrows():
 assignments_df = pd.DataFrame(assignments)
 print(assignments_df)
 
-assignments_df.to_csv("incident_assignments1.csv", index=False)
+assignments_df.to_csv("allocation_table.csv", index=False)
