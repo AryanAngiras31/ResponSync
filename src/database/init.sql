@@ -62,9 +62,9 @@ CREATE TABLE current_allocations (
     resource_id INTEGER NOT NULL,
     assignment_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     predicted_response_time REAL,
-    FOREIGN KEY (incident_id) REFERENCES incidents(incident_id),
-    FOREIGN KEY (resource_id) REFERENCES resources(resource_id),
-    UNIQUE (incident_id) -- Assuming one active allocation per incident at a time for your core requirement
+    FOREIGN KEY (incident_id) REFERENCES current_incidents(incident_id),
+    FOREIGN KEY (resource_id) REFERENCES current_resources(resource_id),
+    UNIQUE (incident_id) 
 );
 
 --Insertion of elements into incidents table

@@ -1,7 +1,7 @@
 import sqlite3
 from flask import Flask, request, jsonify, g
 
-DATABASE = '../database/responsync.db' # Adjust path as needed
+DATABASE = '../database/database.db' 
 
 app = Flask(__name__)
 app.config['JSON_SORT_KEYS'] = False # Keep JSON order as is
@@ -47,10 +47,10 @@ def create_incident():
 
     try:
         incident_id = execute_db(
-            'INSERT INTO incidents (location_latitude, location_longitude, severity, type) VALUES (?, ?, ?, ?)',
+            'INSERT INTO current_incidents (location_latitude, location_longitude, severity, type) VALUES (?, ?, ?, ?)',
             [data['location_latitude'], data['location_longitude'], data['severity'], data['type']]
         )
-        new_incident = query_db('SELECT * FROM incidents WHERE incident_id = ?', [incident_id], one=True)
+        new_incident = query_db('SELECT * FROM current_incidents WHERE incident_id = ?', [incident_id], one=True)
         return jsonify(dict(new_incident)), 201
     except sqlite3.Error as e:
         return jsonify({"error": f"Database error: {e}"}), 500
@@ -59,7 +59,7 @@ def create_incident():
 def get_incidents():
     """Retrieves all incidents."""
     try:
-        incidents = query_db('SELECT * FROM incidents')
+        incidents = query_db('SELECT * FROM current_incidents')
         return jsonify([dict(ix) for ix in incidents]), 200
     except sqlite3.Error as e:
         return jsonify({"error": f"Database error: {e}"}), 500
@@ -68,7 +68,7 @@ def get_incidents():
 def get_incident(incident_id):
     """Retrieves a specific incident by ID."""
     try:
-        incident = query_db('SELECT * FROM incidents WHERE incident_id = ?', [incident_id], one=True)
+        incident = query_db('SELECT * FROM current_incidents WHERE incident_id = ?', [incident_id], one=True)
         if incident is None:
             return jsonify({"error": "Incident not found"}), 404
         return jsonify(dict(incident)), 200
@@ -80,13 +80,13 @@ def delete_incident(incident_id):
     """Deletes an incident by ID."""
     try:
         # Optional: Check if incident exists before deleting
-        incident = query_db('SELECT 1 FROM incidents WHERE incident_id = ?', [incident_id], one=True)
+        incident = query_db('SELECT 1 FROM current_incidents WHERE incident_id = ?', [incident_id], one=True)
         if incident is None:
             return jsonify({"error": "Incident not found"}), 404
 
-        execute_db('DELETE FROM incidents WHERE incident_id = ?', [incident_id])
+        execute_db('DELETE FROM current_incidents WHERE incident_id = ?', [incident_id])
         # Consider deleting related allocations as well, or handle foreign key constraints
-        # execute_db('DELETE FROM allocations WHERE incident_id = ?', [incident_id])
+        # execute_db('DELETE FROM current_allocations WHERE incident_id = ?', [incident_id])
         return jsonify({"message": "Incident deleted successfully"}), 200
     except sqlite3.Error as e:
         return jsonify({"error": f"Database error: {e}"}), 500
@@ -105,10 +105,10 @@ def create_resource():
 
     try:
         resource_id = execute_db(
-            'INSERT INTO resources (type, current_latitude, current_longitude, status) VALUES (?, ?, ?, ?)',
+            'INSERT INTO current_resources (type, current_latitude, current_longitude, status) VALUES (?, ?, ?, ?)',
             [data['type'], data['current_latitude'], data['current_longitude'], data['status']]
         )
-        new_resource = query_db('SELECT * FROM resources WHERE resource_id = ?', [resource_id], one=True)
+        new_resource = query_db('SELECT * FROM current_resources WHERE resource_id = ?', [resource_id], one=True)
         return jsonify(dict(new_resource)), 201
     except sqlite3.Error as e:
         return jsonify({"error": f"Database error: {e}"}), 500
@@ -117,7 +117,7 @@ def create_resource():
 def get_resources():
     """Retrieves all resources."""
     try:
-        resources = query_db('SELECT * FROM resources')
+        resources = query_db('SELECT * FROM current_resources')
         return jsonify([dict(res) for res in resources]), 200
     except sqlite3.Error as e:
         return jsonify({"error": f"Database error: {e}"}), 500
@@ -126,7 +126,7 @@ def get_resources():
 def get_resource(resource_id):
     """Retrieves a specific resource by ID."""
     try:
-        resource = query_db('SELECT * FROM resources WHERE resource_id = ?', [resource_id], one=True)
+        resource = query_db('SELECT * FROM current_resources WHERE resource_id = ?', [resource_id], one=True)
         if resource is None:
             return jsonify({"error": "Resource not found"}), 404
         return jsonify(dict(resource)), 200
@@ -156,16 +156,16 @@ def update_resource(resource_id):
         return jsonify({"error": "No valid fields provided for update"}), 400
 
     values.append(resource_id) # Add resource_id for the WHERE clause
-    query = f"UPDATE resources SET {', '.join(fields)} WHERE resource_id = ?"
+    query = f"UPDATE current_resources SET {', '.join(fields)} WHERE resource_id = ?"
 
     try:
         # Check if resource exists
-        resource = query_db('SELECT 1 FROM resources WHERE resource_id = ?', [resource_id], one=True)
+        resource = query_db('SELECT 1 FROM current_resources WHERE resource_id = ?', [resource_id], one=True)
         if resource is None:
             return jsonify({"error": "Resource not found"}), 404
 
         execute_db(query, values)
-        updated_resource = query_db('SELECT * FROM resources WHERE resource_id = ?', [resource_id], one=True)
+        updated_resource = query_db('SELECT * FROM current_resources WHERE resource_id = ?', [resource_id], one=True)
         return jsonify(dict(updated_resource)), 200
     except sqlite3.Error as e:
         return jsonify({"error": f"Database error: {e}"}), 500
@@ -176,14 +176,15 @@ def delete_resource(resource_id):
     """Deletes a resource by ID."""
     try:
         # Optional: Check if resource exists before deleting
-        resource = query_db('SELECT 1 FROM resources WHERE resource_id = ?', [resource_id], one=True)
+        resource = query_db('SELECT 1 FROM current_resources WHERE resource_id = ?', [resource_id], one=True)
         if resource is None:
             return jsonify({"error": "Resource not found"}), 404
 
-        execute_db('DELETE FROM resources WHERE resource_id = ?', [resource_id])
-        # Consider deleting related allocations as well, or handle foreign key constraints
-        # execute_db('DELETE FROM allocations WHERE resource_id = ?', [resource_id])
-        return jsonify({"message": "Resource deleted successfully"}), 200
+        # Delete related allocations first due to foreign key constraints
+        execute_db('DELETE FROM current_allocations WHERE resource_id = ?', [resource_id])
+        # Then delete the resource
+        execute_db('DELETE FROM current_resources WHERE resource_id = ?', [resource_id])
+        return jsonify({"message": "Resource and related allocations deleted successfully"}), 200
     except sqlite3.Error as e:
         return jsonify({"error": f"Database error: {e}"}), 500
 
@@ -202,26 +203,26 @@ def create_allocation():
 
     try:
         # Check if incident and resource exist
-        incident = query_db('SELECT 1 FROM incidents WHERE incident_id = ?', [data['incident_id']], one=True)
-        resource = query_db('SELECT 1 FROM resources WHERE resource_id = ?', [data['resource_id']], one=True)
+        incident = query_db('SELECT 1 FROM current_incidents WHERE incident_id = ?', [data['incident_id']], one=True)
+        resource = query_db('SELECT 1 FROM current_resources WHERE resource_id = ?', [data['resource_id']], one=True)
         if not incident:
             return jsonify({"error": f"Incident with ID {data['incident_id']} not found"}), 404
         if not resource:
             return jsonify({"error": f"Resource with ID {data['resource_id']} not found"}), 404
 
         # Check for UNIQUE constraint on incident_id (only one allocation per incident)
-        existing_allocation = query_db('SELECT 1 FROM allocations WHERE incident_id = ?', [data['incident_id']], one=True)
+        existing_allocation = query_db('SELECT 1 FROM current_allocations WHERE incident_id = ?', [data['incident_id']], one=True)
         if existing_allocation:
              return jsonify({"error": f"Incident {data['incident_id']} already has an allocation"}), 409 # Conflict
 
         allocation_id = execute_db(
-            'INSERT INTO allocations (incident_id, resource_id, predicted_response_time) VALUES (?, ?, ?)',
+            'INSERT INTO current_allocations (incident_id, resource_id, predicted_response_time) VALUES (?, ?, ?)',
             [data['incident_id'], data['resource_id'], predicted_time]
         )
-        new_allocation = query_db('SELECT * FROM allocations WHERE allocation_id = ?', [allocation_id], one=True)
+        new_allocation = query_db('SELECT * FROM current_allocations WHERE allocation_id = ?', [allocation_id], one=True)
 
         # Optionally update resource status to 'en_route' upon allocation
-        execute_db('UPDATE resources SET status = ? WHERE resource_id = ?', ['en_route', data['resource_id']])
+        execute_db('UPDATE current_resources SET status = ? WHERE resource_id = ?', ['en_route', data['resource_id']])
 
         return jsonify(dict(new_allocation)), 201
     except sqlite3.IntegrityError as e:
@@ -237,12 +238,12 @@ def get_allocations():
         # Join with incidents and resources for more context (optional)
         allocations = query_db('''
             SELECT a.*, i.type as incident_type, r.type as resource_type
-            FROM allocations a
-            JOIN incidents i ON a.incident_id = i.incident_id
-            JOIN resources r ON a.resource_id = r.resource_id
+            FROM current_allocations a
+            JOIN current_incidents i ON a.incident_id = i.incident_id
+            JOIN current_resources r ON a.resource_id = r.resource_id
         ''')
         # If you only want allocation table data:
-        # allocations = query_db('SELECT * FROM allocations')
+        # allocations = query_db('SELECT * FROM current_allocations')
         return jsonify([dict(alloc) for alloc in allocations]), 200
     except sqlite3.Error as e:
         return jsonify({"error": f"Database error: {e}"}), 500
@@ -251,7 +252,7 @@ def get_allocations():
 def get_allocation(allocation_id):
     """Retrieves a specific allocation by ID."""
     try:
-        allocation = query_db('SELECT * FROM allocations WHERE allocation_id = ?', [allocation_id], one=True)
+        allocation = query_db('SELECT * FROM current_allocations WHERE allocation_id = ?', [allocation_id], one=True)
         if allocation is None:
             return jsonify({"error": "Allocation not found"}), 404
         return jsonify(dict(allocation)), 200
@@ -263,16 +264,16 @@ def delete_allocation(allocation_id):
     """Deletes an allocation by ID."""
     try:
         # Optional: Check if allocation exists before deleting
-        allocation = query_db('SELECT resource_id FROM allocations WHERE allocation_id = ?', [allocation_id], one=True)
+        allocation = query_db('SELECT resource_id FROM current_allocations WHERE allocation_id = ?', [allocation_id], one=True)
         if allocation is None:
             return jsonify({"error": "Allocation not found"}), 404
 
-        execute_db('DELETE FROM allocations WHERE allocation_id = ?', [allocation_id])
+        execute_db('DELETE FROM current_allocations WHERE allocation_id = ?', [allocation_id])
 
         # Optionally update the previously allocated resource status back to 'available'
         # Be careful: Only do this if the resource isn't immediately re-allocated or occupied
         # resource_id = allocation['resource_id']
-        # execute_db('UPDATE resources SET status = ? WHERE resource_id = ? AND status = ?', ['available', resource_id, 'en_route'])
+        # execute_db('UPDATE current_resources SET status = ? WHERE resource_id = ? AND status = ?', ['available', resource_id, 'en_route'])
 
         return jsonify({"message": "Allocation deleted successfully"}), 200
     except sqlite3.Error as e:
